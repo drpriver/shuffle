@@ -4,7 +4,8 @@
 #include <stddef.h>
 // uint64_t, uint32_t
 #include <stdint.h>
-#include "david_macros.h"
+#include <assert.h>
+#include "macros.h"
 #include "ds_utils.h"
 typedef struct RngState {
     uint64_t state;
@@ -94,10 +95,8 @@ bounded_random(Nonnull(RngState*) rng, uint32_t bound){
             return temp;
             }
         }
-    // will assert(0) in debug
-    // gcc will correctly convert the for to an infinite
-    // loop in release, but clang didn't figure it out.
-    unreachable();
+    assert(0);
+    __builtin_unreachable();
     }
 
 #endif

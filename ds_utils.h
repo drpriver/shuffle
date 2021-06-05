@@ -4,12 +4,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "david_macros.h"
+#include "macros.h"
 
 // cut'n'paste from the wikipedia page on murmur hash
 static inline
 force_inline
-nosan
 uint32_t
 murmur_32_scramble(uint32_t k) {
     k *= 0xcc9e2d51;
@@ -19,7 +18,6 @@ murmur_32_scramble(uint32_t k) {
 }
 static inline
 force_inline
-nosan
 uint32_t
 murmur3_32(Nonnull(const uint8_t*) key, size_t len, uint32_t seed)
 {
@@ -52,7 +50,6 @@ murmur3_32(Nonnull(const uint8_t*) key, size_t len, uint32_t seed)
 
 static inline
 uint64_t
-nosan
 hashbytes(Nonnull(const void*) vp, size_t length){
     return murmur3_32(vp, length, 1107845655llu);
     }

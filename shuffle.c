@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "term_util.h"
-#include "david_macros.h"
+#include "macros.h"
 #include "rng.h"
 typedef struct String {
     size_t length;
@@ -98,7 +98,7 @@ get_lines(Nonnull(StringArray*) array, Nonnull(FILE*)fp, unsigned flags){
 int main(int argc, char** argv){
     StringArray input = make_string_array();
     if(argc < 2){
-        bool interactive = isatty(STDIN_FILENO);
+        int interactive = isatty(STDIN_FILENO);
         unsigned flags = interactive? F_STOP_ON_BLANK : F_SKIP_BLANKS;
         get_lines(&input, stdin, flags);
         }
@@ -109,7 +109,7 @@ int main(int argc, char** argv){
             fclose(fp);
             }
         }
-    if(not input.count)
+    if(!input.count)
         return 0;
     RngState rng;
     seed_rng_auto(&rng);
