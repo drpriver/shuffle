@@ -116,13 +116,13 @@ print_help(const char* progname){
 "    so filenames starting with '-' can be read.\n"
 "\n"
 "Consuming Args (consumes next argument):\n"
-"---------------\n"
+"----------------------------------------\n"
 "-S: Seed the rng with the given string\n"
 "    If not given, seeds via the system.\n"
 "-n: Print no more than N output lines.\n"
 "    Will not print more than the number of input lines.\n"
 "\n"
-"If no filenames or listed or the -i flag is passed, %s will read\n"
+"If no filenames are listed or the -i flag is passed, %s will read\n"
 "from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
 , progname, progname, progname);
     }
