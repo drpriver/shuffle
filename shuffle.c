@@ -70,7 +70,6 @@ enum {
     F_SKIP_BLANKS   = 0x1,
     F_STOP_ON_BLANK = 0x2,
     F_PRINT_NEWLINE = 0x4,
-    F_READ_STDIN    = 0x8,
 };
 
 static
@@ -138,6 +137,7 @@ main(int argc, char** argv){
     PointerArray files = make_pointer_array();
     int read_options = 1;
     int next_arg_is_arg = 0;
+    int read_stdin = 0;
     char* seed = NULL;
     char** arg_to_set = NULL;
     char* n_str = NULL;
@@ -148,7 +148,7 @@ main(int argc, char** argv){
         if(next_arg_is_arg){
             assert(arg_to_set);
             *arg_to_set = argv[i];
-            next_arg_is_arg = 0;
+            next_arg_is_arg--;
             continue;
             }
         if(s[0] == '-' && read_options){
@@ -180,7 +180,7 @@ main(int argc, char** argv){
                         flags |= F_SKIP_BLANKS;
                         continue;
                     case 'i':
-                        flags |= F_READ_STDIN;
+                        read_stdin = 1;
                         continue;
                     case 'h':
                         print_help(argv[0]);
@@ -224,7 +224,7 @@ main(int argc, char** argv){
         n = n_val;
         }
     PointerArray input = make_pointer_array();
-    if(!files.count || (flags & F_READ_STDIN)){
+    if(!files.count || read_stdin){
         int interactive = isatty(STDIN_FILENO);
         unsigned f = flags;
         if(interactive){
