@@ -72,6 +72,7 @@ enum {
     F_PRINT_NEWLINE = 0x4,
     F_READ_STDIN    = 0x8,
 };
+
 static
 void
 get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
@@ -97,11 +98,13 @@ get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
     if(flags & F_PRINT_NEWLINE)
         putchar('\n');
     }
-void print_help(const char* progname){
+
+void
+print_help(const char* progname){
     fprintf(stdout,
 "%s: Shuffles lines, outputting them in a random order.\n"
 "\n"
-"usage: %s [-bhis] [--] [file ...]\n"
+"usage: %s [-bhis] [-S SEED] [--] [file ...]\n"
 "\n"
 "Flags:\n"
 "------\n"
@@ -109,29 +112,56 @@ void print_help(const char* progname){
 "-h: Print this help and exit.\n"
 "-i: Read lines from stdin (in addition to the input files).\n"
 "-s: Skip blank lines in files.\n"
-"--: Interrupt all following arguments as filenames\n"
+"--: Interpret all following arguments as filenames\n"
 "    so filenames starting with '-' can be read.\n"
+"\n"
+"Consuming Args (consumes next argument):\n"
+"---------------\n"
+"-S: Seed the rng with the given string\n"
+"    If not given, seeds via the system.\n"
 "\n"
 "If no filenames or listed or the -i flag is passed, %s will read\n"
 "from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
 , progname, progname, progname);
     }
 
-void print_usage(const char* progname){
-    fprintf(stderr, "usage: %s [-bhis] [--] [file ...]\n", progname);
+void
+print_usage(const char* progname){
+    fprintf(stderr, "usage: %s [-bhis] [-S SEED] [--] [file ...]\n", progname);
     }
 
-int main(int argc, char** argv){
+int
+main(int argc, char** argv){
     unsigned flags = 0;
     PointerArray files = make_pointer_array();
     int read_options = 1;
+    int next_arg_is_arg = 0;
+    char* seed = NULL;
+    char** arg_to_set = NULL;
+    const char* name_of_arg_to_set = "(INTERNAL LOGIC ERROR)";
     for(int i = 1; i < argc; i++){
         char* s = argv[i];
+        if(next_arg_is_arg){
+            assert(arg_to_set);
+            *arg_to_set = argv[i];
+            next_arg_is_arg = 0;
+            continue;
+            }
         if(s[0] == '-' && read_options){
             s++;
             char c;
             while((c = *s++)){
                 switch(c){
+                    case 'S':
+                        if(next_arg_is_arg){
+                            fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
+                            print_usage(argv[0]);
+                            return 1;
+                            }
+                        next_arg_is_arg = 1;
+                        arg_to_set = &seed;
+                        name_of_arg_to_set = "-S";
+                        continue;
                     case 's':
                         flags |= F_SKIP_BLANKS;
                         continue;
@@ -167,6 +197,10 @@ int main(int argc, char** argv){
             }
         push(&files, fp);
         }
+    if(next_arg_is_arg){
+        fprintf(stderr, "Unexpected end of arguments. '%s' expected an argument afterwards\n", name_of_arg_to_set);
+        return 1;
+        }
     PointerArray input = make_pointer_array();
     if(!files.count || (flags & F_READ_STDIN)){
         int interactive = isatty(STDIN_FILENO);
@@ -188,7 +222,10 @@ int main(int argc, char** argv){
     if(!input.count)
         return 0;
     RngState rng;
-    seed_rng_auto(&rng);
+    if(seed)
+        string_seed_rng(&rng, seed, strlen(seed));
+    else
+        seed_rng_auto(&rng);
     shuffle_pointers(&rng, input.data, input.count);
     for(size_t i = 0; i < input.count; i++){
         // fputs doesn't append a newline.
