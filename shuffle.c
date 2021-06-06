@@ -104,7 +104,7 @@ print_help(const char* progname){
     fprintf(stdout,
 "%s: Shuffles lines, outputting them in a random order.\n"
 "\n"
-"usage: %s [-bhis] [-S SEED] [--] [file ...]\n"
+"usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n"
 "\n"
 "Flags:\n"
 "------\n"
@@ -119,6 +119,8 @@ print_help(const char* progname){
 "---------------\n"
 "-S: Seed the rng with the given string\n"
 "    If not given, seeds via the system.\n"
+"-n: Print no more than N output lines.\n"
+"    Will not print more than the number of input lines.\n"
 "\n"
 "If no filenames or listed or the -i flag is passed, %s will read\n"
 "from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
@@ -127,7 +129,7 @@ print_help(const char* progname){
 
 void
 print_usage(const char* progname){
-    fprintf(stderr, "usage: %s [-bhis] [-S SEED] [--] [file ...]\n", progname);
+    fprintf(stderr, "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n", progname);
     }
 
 int
@@ -138,7 +140,9 @@ main(int argc, char** argv){
     int next_arg_is_arg = 0;
     char* seed = NULL;
     char** arg_to_set = NULL;
+    char* n_str = NULL;
     const char* name_of_arg_to_set = "(INTERNAL LOGIC ERROR)";
+    size_t n = 0;
     for(int i = 1; i < argc; i++){
         char* s = argv[i];
         if(next_arg_is_arg){
@@ -152,6 +156,16 @@ main(int argc, char** argv){
             char c;
             while((c = *s++)){
                 switch(c){
+                    case 'n':
+                        if(next_arg_is_arg){
+                            fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
+                            print_usage(argv[0]);
+                            return 1;
+                            }
+                        next_arg_is_arg = 1;
+                        arg_to_set = &n_str;
+                        name_of_arg_to_set = "-n";
+                        continue;
                     case 'S':
                         if(next_arg_is_arg){
                             fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
@@ -201,6 +215,14 @@ main(int argc, char** argv){
         fprintf(stderr, "Unexpected end of arguments. '%s' expected an argument afterwards\n", name_of_arg_to_set);
         return 1;
         }
+    if(n_str){
+        int n_val = atoi(n_str);
+        if(n_val < 1){
+            fprintf(stderr, "n must be an integer greater than 0, not '%s'\n", n_str);
+            return 1;
+            }
+        n = n_val;
+        }
     PointerArray input = make_pointer_array();
     if(!files.count || (flags & F_READ_STDIN)){
         int interactive = isatty(STDIN_FILENO);
@@ -227,7 +249,11 @@ main(int argc, char** argv){
     else
         seed_rng_auto(&rng);
     shuffle_pointers(&rng, input.data, input.count);
-    for(size_t i = 0; i < input.count; i++){
+    if(!n)
+        n = input.count;
+    if(n > input.count)
+        n = input.count;
+    for(size_t i = 0; i < n; i++){
         // fputs doesn't append a newline.
         fputs(input.data[i], stdout);
         }
