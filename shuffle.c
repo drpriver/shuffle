@@ -58,7 +58,7 @@ Nonnull(void*)
 memdup(Nonnull(const void*)src, size_t length){
     void* p = malloc(length);
     if(!p){
-        perror("Failed to strduplicate: malloc");
+        perror("Failed to memdup: malloc");
         exit(1);
         }
     memcpy(p, src, length);
