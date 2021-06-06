@@ -1,5 +1,5 @@
-#ifndef DS_UTILS_H
-#define DS_UTILS_H
+#ifndef HASHBYTES_H
+#define HASHBYTES_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -19,8 +19,7 @@ murmur_32_scramble(uint32_t k) {
 static inline
 force_inline
 uint32_t
-murmur3_32(Nonnull(const uint8_t*) key, size_t len, uint32_t seed)
-{
+murmur3_32(Nonnull(const uint8_t*) key, size_t len, uint32_t seed){
 	uint32_t h = seed;
     uint32_t k;
     /* Read in groups of 4. */
@@ -51,7 +50,8 @@ murmur3_32(Nonnull(const uint8_t*) key, size_t len, uint32_t seed)
 static inline
 uint64_t
 hashbytes(Nonnull(const void*) vp, size_t length){
+    // FIXME: this should use a 64 bit hash, not a 32 bit hash.
     return murmur3_32(vp, length, 1107845655llu);
-    }
+}
 
 #endif

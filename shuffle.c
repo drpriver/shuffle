@@ -21,7 +21,7 @@ make_pointer_array(void){
     if(!array.data){
         perror("Failed to make PointerArray: malloc");
         exit(1);
-        }
+    }
     return array;
 }
 
@@ -36,8 +36,8 @@ shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t co
         void* temp = data[i];
         data[i] = data[j];
         data[j] = temp;
-        }
     }
+}
 
 static inline
 void
@@ -48,10 +48,10 @@ push(Nonnull(PointerArray*)array, NullUnspec(void*) p){
         if(!array->data){
             perror("Failed to resize PointerArray: realloc");
             exit(1);
-            }
         }
-    array->data[array->count++] = p;
     }
+    array->data[array->count++] = p;
+}
 
 static inline
 Nonnull(void*)
@@ -60,10 +60,10 @@ memdup(Nonnull(const void*)src, size_t length){
     if(!p){
         perror("Failed to memdup: malloc");
         exit(1);
-        }
+    }
     memcpy(p, src, length);
     return p;
-    }
+}
 
 enum {
     F_NONE          = 0x0,
@@ -83,20 +83,20 @@ get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
                 return; // return instead of break to skip PRINT_NEWLINE
             if(flags & F_SKIP_BLANKS)
                 continue;
-            }
+        }
         if(!len) // I think this is impossible?
             continue;
         len++; // include nul
         void* s = memdup(buff, len);
         push(array, s);
-        }
+    }
     if(ferror(fp)){
         fprintf(stderr, "Error while reading: %s\n", strerror(errno));
         exit(1);
-        }
+    }
     if(flags & F_PRINT_NEWLINE)
         putchar('\n');
-    }
+}
 
 void
 print_help(const char* progname){
@@ -124,12 +124,12 @@ print_help(const char* progname){
 "If no filenames are listed or the -i flag is passed, %s will read\n"
 "from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
 , progname, progname, progname);
-    }
+}
 
 void
 print_usage(const char* progname){
     fprintf(stderr, "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n", progname);
-    }
+}
 
 int
 main(int argc, char** argv){
@@ -150,7 +150,7 @@ main(int argc, char** argv){
             *arg_to_set = argv[i];
             next_arg_is_arg--;
             continue;
-            }
+        }
         if(s[0] == '-' && read_options){
             s++;
             char c;
@@ -161,7 +161,7 @@ main(int argc, char** argv){
                             fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
                             print_usage(argv[0]);
                             return 1;
-                            }
+                        }
                         next_arg_is_arg = 1;
                         arg_to_set = &n_str;
                         name_of_arg_to_set = "-n";
@@ -171,7 +171,7 @@ main(int argc, char** argv){
                             fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
                             print_usage(argv[0]);
                             return 1;
-                            }
+                        }
                         next_arg_is_arg = 1;
                         arg_to_set = &seed;
                         name_of_arg_to_set = "-S";
@@ -194,35 +194,35 @@ main(int argc, char** argv){
                             fprintf(stderr, "--long-arg options are not supported: '%s'\n", argv[i]);
                             print_usage(argv[0]);
                             return 1;
-                            }
+                        }
                         continue;
                     default:
                         fprintf(stderr, "Illegal option: '%c'\n", c);
                         print_usage(argv[0]);
                         return 1;
-                    }
                 }
-            continue;
             }
+            continue;
+        }
         FILE* fp = fopen(s, "r");
         if(!fp){
             fprintf(stderr, "cannot open '%s': %s\n", s, strerror(errno));
             return 1;
-            }
-        push(&files, fp);
         }
+        push(&files, fp);
+    }
     if(next_arg_is_arg){
         fprintf(stderr, "Unexpected end of arguments. '%s' expected an argument afterwards\n", name_of_arg_to_set);
         return 1;
-        }
+    }
     if(n_str){
         int n_val = atoi(n_str);
         if(n_val < 1){
             fprintf(stderr, "n must be an integer greater than 0, not '%s'\n", n_str);
             return 1;
-            }
-        n = n_val;
         }
+        n = n_val;
+    }
     PointerArray input = make_pointer_array();
     if(!files.count || read_stdin){
         int interactive = isatty(STDIN_FILENO);
@@ -230,17 +230,17 @@ main(int argc, char** argv){
         if(interactive){
             f |= F_STOP_ON_BLANK;
             f |= F_PRINT_NEWLINE;
-            }
+        }
         else {
             f |= F_SKIP_BLANKS;
-            }
-        get_lines(&input, stdin, f);
         }
+        get_lines(&input, stdin, f);
+    }
     for(size_t i = 0; i < files.count; i++){
         FILE* fp = files.data[i];
         get_lines(&input, fp, flags);
         // fclose(fp);
-        }
+    }
     if(!input.count)
         return 0;
     RngState rng;
@@ -256,6 +256,6 @@ main(int argc, char** argv){
     for(size_t i = 0; i < n; i++){
         // fputs doesn't append a newline.
         fputs(input.data[i], stdout);
-        }
-    return 0;
     }
+    return 0;
+}

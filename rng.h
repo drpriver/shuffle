@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <assert.h>
 #include "macros.h"
-#include "ds_utils.h"
+#include "hashbytes.h"
+
 typedef struct RngState {
     uint64_t state;
     uint64_t inc;
@@ -20,7 +21,7 @@ rng_random32(Nonnull(RngState*) rng){
     uint32_t xorshifted = (uint32_t) ( ((oldstate >> 18u) ^ oldstate) >> 27u);
     uint32_t rot = oldstate >> 59u;
     return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
-    }
+}
 
 static inline
 void
@@ -30,7 +31,7 @@ seed_rng_fixed(Nonnull(RngState*) rng, uint64_t initstate, uint64_t initseq){
     rng_random32(rng);
     rng->state += initstate;
     rng_random32(rng);
-    }
+}
 
 
 #ifdef __linux__
@@ -62,8 +63,7 @@ seed_rng_auto(Nonnull(RngState*) rng){
     __builtin_ia32_rdseed64_step(&initseq);
 #endif
     seed_rng_fixed(rng, initstate, initseq);
-    return;
-    }
+}
 
 static inline
 void
@@ -71,7 +71,7 @@ string_seed_rng(Nonnull(RngState*) rng, Nonnull(const char*) restrict str, size_
     uint64_t s = hashbytes(str, len);
     uint64_t s2 = s * 1087;
     seed_rng_fixed(rng, s, s2);
-    }
+}
 
 // from
 // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
@@ -80,23 +80,25 @@ force_inline
 uint32_t
 fast_reduce(uint32_t x, uint32_t N){
     return ((uint64_t)x * (uint64_t)N) >> 32;
-    }
+}
 
 static inline
 uint32_t
 bounded_random(Nonnull(RngState*) rng, uint32_t bound){
     uint32_t threshold = -bound % bound;
     // bounded loop to catch unitialized rng errors
-    for(size_t i = 0 ; i < 10000; i++) {
+    for(size_t i = 0 ; i < 10000; i++){
         uint32_t r = rng_random32(rng);
-        if (r >= threshold){
+        if(r >= threshold){
             uint32_t temp = fast_reduce(r, bound);
             // auto temp = r % bound;
             return temp;
-            }
         }
-    assert(0);
-    __builtin_unreachable();
     }
+    assert(0);
+#if defined(__GNUC__)
+    __builtin_unreachable();
+#endif
+}
 
 #endif
