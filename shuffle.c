@@ -35,6 +35,7 @@ main(int argc, char** argv){
     int args_are_lines = 0;
     int next_arg_is_arg = 0;
     int read_stdin = 0;
+    int allow_replacement = 0;
     char* seed = NULL;
     char** arg_to_set = NULL;
     char* n_str = NULL;
@@ -99,6 +100,9 @@ main(int argc, char** argv){
                     case 'b':
                         flags |= F_STOP_ON_BLANK;
                         continue;
+                    case 'r':
+                        allow_replacement = 1;
+                        continue;
                     case '-':
                         read_options = 0;
                         if(*s != '\0'){
@@ -161,10 +165,19 @@ main(int argc, char** argv){
     shuffle_pointers(&rng, input.data, input.count);
     if(!n)
         n = input.count;
-    if(n > input.count)
-        n = input.count;
-    for(size_t i = 0; i < n; i++){
-        puts(input.data[i]);
+    if(!allow_replacement){
+        if(n > input.count)
+            n = input.count;
+        for(size_t i = 0; i < n; i++){
+            puts(input.data[i]);
+        }
+    }
+    else {
+        for(size_t i = 0; i < n; i++){
+            uint32_t index = bounded_random(&rng, input.count);
+            const char* s = input.data[index];
+            puts(s);
+        }
     }
     return 0;
 }
@@ -175,7 +188,7 @@ print_help(const char* progname){
     fprintf(stdout,
 "%s: Shuffles lines, outputting them in a random order.\n"
 "\n"
-#define USAGE "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...] [-a ARG ...]\n"
+#define USAGE "usage: %s [-bhirs] [-S SEED] [-n N] [--] [file ...] [-a ARG ...]\n"
 USAGE
 "\n"
 "Flags:\n"
@@ -183,13 +196,14 @@ USAGE
 "-b: Stop when the first blank line is encountered.\n"
 "-h: Print this help and exit.\n"
 "-i: Read lines from stdin (in addition to the input files).\n"
+"-r: Allow repeats in the output (draw with replacement).\n"
 "-s: Skip blank lines in files.\n"
 "--: Interpret all following arguments as filenames\n"
 "    so filenames starting with '-' can be read.\n"
 "\n"
 "Consuming Args (consumes next argument):\n"
 "----------------------------------------\n"
-"-a [ARG ...]: treat the following arguments as input lines.\n"
+"-a [ARG ...]: Treat the following arguments as input lines.\n"
 "-n N:         Print no more than N output lines.\n"
 "              Will not print more than the number of input lines.\n"
 "-S SEED:      Seed the rng with the given string\n"
