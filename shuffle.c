@@ -32,6 +32,7 @@ main(int argc, char** argv){
     unsigned flags = 0;
     PointerArray files = make_pointer_array();
     int read_options = 1;
+    int args_are_lines = 0;
     int next_arg_is_arg = 0;
     int read_stdin = 0;
     char* seed = NULL;
@@ -39,8 +40,13 @@ main(int argc, char** argv){
     char* n_str = NULL;
     const char* name_of_arg_to_set = "(INTERNAL LOGIC ERROR)";
     size_t n = 0;
+    PointerArray input = make_pointer_array();
     for(int i = 1; i < argc; i++){
         char* s = argv[i];
+        if(args_are_lines){
+            push(&input, s);
+            continue;
+        }
         if(next_arg_is_arg){
             assert(arg_to_set);
             *arg_to_set = argv[i];
@@ -52,9 +58,18 @@ main(int argc, char** argv){
             char c;
             while((c = *s++)){
                 switch(c){
+                    case 'a':
+                        if(next_arg_is_arg || args_are_lines){
+                            fprintf(stderr, "More than one arg consuming argument provided: '%c', %s was set.\n", c, name_of_arg_to_set);
+                            print_usage(argv[0]);
+                            return 1;
+                        }
+                        args_are_lines = 1;
+                        name_of_arg_to_set = "-a";
+                        continue;
                     case 'n':
-                        if(next_arg_is_arg){
-                            fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
+                        if(next_arg_is_arg || args_are_lines){
+                            fprintf(stderr, "More than one arg consuming argument provided: '%c', %s was set.\n", c, name_of_arg_to_set);
                             print_usage(argv[0]);
                             return 1;
                         }
@@ -63,8 +78,8 @@ main(int argc, char** argv){
                         name_of_arg_to_set = "-n";
                         continue;
                     case 'S':
-                        if(next_arg_is_arg){
-                            fprintf(stderr, "More than one arg consuming argument provided: '%c'\n", c);
+                        if(next_arg_is_arg || args_are_lines){
+                            fprintf(stderr, "More than one arg consuming argument provided: '%c', %s was set.\n", c, name_of_arg_to_set);
                             print_usage(argv[0]);
                             return 1;
                         }
@@ -119,8 +134,7 @@ main(int argc, char** argv){
         }
         n = n_val;
     }
-    PointerArray input = make_pointer_array();
-    if(!files.count || read_stdin){
+    if(read_stdin || (!files.count && !input.count)){
         int interactive = isatty(STDIN_FILENO);
         unsigned f = flags;
         if(interactive){
@@ -150,8 +164,7 @@ main(int argc, char** argv){
     if(n > input.count)
         n = input.count;
     for(size_t i = 0; i < n; i++){
-        // fputs doesn't append a newline.
-        fputs(input.data[i], stdout);
+        puts(input.data[i]);
     }
     return 0;
 }
@@ -162,7 +175,7 @@ print_help(const char* progname){
     fprintf(stdout,
 "%s: Shuffles lines, outputting them in a random order.\n"
 "\n"
-#define USAGE "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n"
+#define USAGE "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...] [-a ARG ...]\n"
 USAGE
 "\n"
 "Flags:\n"
@@ -176,10 +189,11 @@ USAGE
 "\n"
 "Consuming Args (consumes next argument):\n"
 "----------------------------------------\n"
-"-S SEED: Seed the rng with the given string\n"
-"         If not given, seeds via the system.\n"
-"-n N:    Print no more than N output lines.\n"
-"         Will not print more than the number of input lines.\n"
+"-a [ARG ...]: treat the following arguments as input lines.\n"
+"-n N:         Print no more than N output lines.\n"
+"              Will not print more than the number of input lines.\n"
+"-S SEED:      Seed the rng with the given string\n"
+"              If not given, seeds via the system.\n"
 "\n"
 "If no filenames are listed or the -i flag is passed, %s will read\n"
 "from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
@@ -260,8 +274,8 @@ get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
         }
         if(!len) // I think this is impossible?
             continue;
-        len++; // include nul
-        void* s = memdup(buff, len);
+        buff[len-1] = '\0';
+        void* s = memdup(buff, len); // includes newly placed nul
         push(array, s);
     }
     if(ferror(fp)){

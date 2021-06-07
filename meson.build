@@ -2,7 +2,7 @@ project('shuffle', 'c',
   version : '0.1',
   default_options : ['warning_level=3'])
 
- add_project_arguments('-march=native', language: 'c')
+add_project_arguments('-march=native', language: 'c')
 
 cc = meson.get_compiler('c')
 

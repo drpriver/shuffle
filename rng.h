@@ -76,11 +76,15 @@ seed_rng_auto(Nonnull(RngState*) rng){
     read = getrandom(&initstate, sizeof(initstate), 0);
     read = getrandom(&initseq, sizeof(initseq), 0);
     (void)read;
-#else
+#elif defined(__GNUC__)
     // Idk how to get random numbers on windows.
     // Just use the intel instruction.
+    //
+    // Idk what the intrinsic on MSVC is.
     __builtin_ia32_rdseed64_step(&initstate);
     __builtin_ia32_rdseed64_step(&initseq);
+#else
+#error "Need to specify a way to seed an rng with this compiler or platform"
 #endif
     seed_rng_fixed(rng, initstate, initseq);
 }
