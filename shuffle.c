@@ -11,59 +11,10 @@ typedef struct PointerArray {
     size_t count;
 } PointerArray;
 
-static inline
-PointerArray
-make_pointer_array(void){
-    PointerArray array;
-    array.count = 0;
-    array.capacity = 8;
-    array.data = malloc(sizeof(*array.data)*array.capacity);
-    if(!array.data){
-        perror("Failed to make PointerArray: malloc");
-        exit(1);
-    }
-    return array;
-}
-
-// fisher-yates shuffle
-static inline
-void
-shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t count){
-    if(count < 2)
-        return;
-    for(size_t i = 0; i < count; i++){
-        size_t j = bounded_random(rng, count-i) + i;
-        void* temp = data[i];
-        data[i] = data[j];
-        data[j] = temp;
-    }
-}
-
-static inline
-void
-push(Nonnull(PointerArray*)array, NullUnspec(void*) p){
-    if(array->count >= array->capacity){
-        array->capacity *= 2;
-        array->data = realloc(array->data, sizeof(*array->data) * array->capacity);
-        if(!array->data){
-            perror("Failed to resize PointerArray: realloc");
-            exit(1);
-        }
-    }
-    array->data[array->count++] = p;
-}
-
-static inline
-Nonnull(void*)
-memdup(Nonnull(const void*)src, size_t length){
-    void* p = malloc(length);
-    if(!p){
-        perror("Failed to memdup: malloc");
-        exit(1);
-    }
-    memcpy(p, src, length);
-    return p;
-}
+static inline PointerArray make_pointer_array(void);
+static inline void push(Nonnull(PointerArray*)array, NullUnspec(void*) p);
+static inline void shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t count);
+static inline Nonnull(void*) memdup(Nonnull(const void*)src, size_t length);
 
 enum {
     F_NONE          = 0x0,
@@ -71,65 +22,10 @@ enum {
     F_STOP_ON_BLANK = 0x2,
     F_PRINT_NEWLINE = 0x4,
 };
+static void get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags);
 
-static
-void
-get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
-    char buff[8192];
-    while(fgets(buff, sizeof(buff), fp)){
-        size_t len = strlen(buff);
-        if(len == 1){
-            if(flags & F_STOP_ON_BLANK)
-                return; // return instead of break to skip PRINT_NEWLINE
-            if(flags & F_SKIP_BLANKS)
-                continue;
-        }
-        if(!len) // I think this is impossible?
-            continue;
-        len++; // include nul
-        void* s = memdup(buff, len);
-        push(array, s);
-    }
-    if(ferror(fp)){
-        fprintf(stderr, "Error while reading: %s\n", strerror(errno));
-        exit(1);
-    }
-    if(flags & F_PRINT_NEWLINE)
-        putchar('\n');
-}
-
-void
-print_help(const char* progname){
-    fprintf(stdout,
-"%s: Shuffles lines, outputting them in a random order.\n"
-"\n"
-"usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n"
-"\n"
-"Flags:\n"
-"------\n"
-"-b: Stop when the first blank line is encountered.\n"
-"-h: Print this help and exit.\n"
-"-i: Read lines from stdin (in addition to the input files).\n"
-"-s: Skip blank lines in files.\n"
-"--: Interpret all following arguments as filenames\n"
-"    so filenames starting with '-' can be read.\n"
-"\n"
-"Consuming Args (consumes next argument):\n"
-"----------------------------------------\n"
-"-S SEED: Seed the rng with the given string\n"
-"         If not given, seeds via the system.\n"
-"-n N:    Print no more than N output lines.\n"
-"         Will not print more than the number of input lines.\n"
-"\n"
-"If no filenames are listed or the -i flag is passed, %s will read\n"
-"from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
-, progname, progname, progname);
-}
-
-void
-print_usage(const char* progname){
-    fprintf(stderr, "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n", progname);
-}
+static void print_help(const char* progname);
+static void print_usage(const char* progname);
 
 int
 main(int argc, char** argv){
@@ -245,7 +141,7 @@ main(int argc, char** argv){
         return 0;
     RngState rng;
     if(seed)
-        string_seed_rng(&rng, seed, strlen(seed));
+        seed_rng_string(&rng, seed, strlen(seed));
     else
         seed_rng_auto(&rng);
     shuffle_pointers(&rng, input.data, input.count);
@@ -258,4 +154,120 @@ main(int argc, char** argv){
         fputs(input.data[i], stdout);
     }
     return 0;
+}
+
+static
+void
+print_help(const char* progname){
+    fprintf(stdout,
+"%s: Shuffles lines, outputting them in a random order.\n"
+"\n"
+#define USAGE "usage: %s [-bhis] [-S SEED] [-n N] [--] [file ...]\n"
+USAGE
+"\n"
+"Flags:\n"
+"------\n"
+"-b: Stop when the first blank line is encountered.\n"
+"-h: Print this help and exit.\n"
+"-i: Read lines from stdin (in addition to the input files).\n"
+"-s: Skip blank lines in files.\n"
+"--: Interpret all following arguments as filenames\n"
+"    so filenames starting with '-' can be read.\n"
+"\n"
+"Consuming Args (consumes next argument):\n"
+"----------------------------------------\n"
+"-S SEED: Seed the rng with the given string\n"
+"         If not given, seeds via the system.\n"
+"-n N:    Print no more than N output lines.\n"
+"         Will not print more than the number of input lines.\n"
+"\n"
+"If no filenames are listed or the -i flag is passed, %s will read\n"
+"from stdin until the EOF is encounted (eg, ^D) or a blank line is inputted.\n"
+, progname, progname, progname);
+}
+
+static
+void
+print_usage(const char* progname){
+    fprintf(stderr, USAGE, progname);
+}
+
+static inline
+PointerArray
+make_pointer_array(void){
+    PointerArray array;
+    array.count = 0;
+    array.capacity = 8;
+    array.data = malloc(sizeof(*array.data)*array.capacity);
+    if(!array.data){
+        perror("Failed to make PointerArray: malloc");
+        exit(1);
+    }
+    return array;
+}
+
+static inline
+void
+push(Nonnull(PointerArray*)array, NullUnspec(void*) p){
+    if(array->count >= array->capacity){
+        array->capacity *= 2;
+        array->data = realloc(array->data, sizeof(*array->data) * array->capacity);
+        if(!array->data){
+            perror("Failed to resize PointerArray: realloc");
+            exit(1);
+        }
+    }
+    array->data[array->count++] = p;
+}
+
+// fisher-yates shuffle
+static inline
+void
+shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t count){
+    if(count < 2)
+        return;
+    for(size_t i = 0; i < count; i++){
+        size_t j = bounded_random(rng, count-i) + i;
+        void* temp = data[i];
+        data[i] = data[j];
+        data[j] = temp;
+    }
+}
+
+static inline
+Nonnull(void*)
+memdup(Nonnull(const void*)src, size_t length){
+    void* p = malloc(length);
+    if(!p){
+        perror("Failed to memdup: malloc");
+        exit(1);
+    }
+    memcpy(p, src, length);
+    return p;
+}
+
+static
+void
+get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
+    char buff[8192];
+    while(fgets(buff, sizeof(buff), fp)){
+        size_t len = strlen(buff);
+        if(len == 1){
+            if(flags & F_STOP_ON_BLANK)
+                return; // return instead of break to skip PRINT_NEWLINE
+            if(flags & F_SKIP_BLANKS)
+                continue;
+        }
+        if(!len) // I think this is impossible?
+            continue;
+        len++; // include nul
+        void* s = memdup(buff, len);
+        push(array, s);
+    }
+    if(ferror(fp)){
+        fprintf(stderr, "Error while reading: %s\n", strerror(errno));
+        exit(1);
+    }
+    if(flags & F_PRINT_NEWLINE)
+        putchar('\n');
 }
