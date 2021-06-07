@@ -4,7 +4,19 @@
 #include <stddef.h>
 // uint64_t, uint32_t
 #include <stdint.h>
+
+#ifdef __linux__
+// for getrandom
+#include <sys/random.h>
+#endif
+
+#ifdef __APPLE__
+// for arc4random_buf
+#include <stdlib.h>
+#endif
+
 #include <assert.h>
+
 #include "macros.h"
 #include "hashbytes.h"
 
@@ -13,6 +25,9 @@ typedef struct RngState {
     uint64_t inc;
 } RngState;
 
+//
+// Produces a uniform random u32.
+//
 static inline
 uint32_t
 rng_random32(Nonnull(RngState*) rng){
@@ -23,6 +38,10 @@ rng_random32(Nonnull(RngState*) rng){
     return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
 }
 
+
+//
+// Seeds the rng with the given values.
+//
 static inline
 void
 seed_rng_fixed(Nonnull(RngState*) rng, uint64_t initstate, uint64_t initseq){
@@ -34,9 +53,10 @@ seed_rng_fixed(Nonnull(RngState*) rng, uint64_t initstate, uint64_t initseq){
 }
 
 
-#ifdef __linux__
-#include <sys/random.h>
-#endif
+//
+// Seeds the rng using os APIs when available.
+// If not available, uses rdseed on x64.
+//
 static inline
 void
 seed_rng_auto(Nonnull(RngState*) rng){
@@ -65,9 +85,12 @@ seed_rng_auto(Nonnull(RngState*) rng){
     seed_rng_fixed(rng, initstate, initseq);
 }
 
+//
+// Seeds the rng by hashing the given string data.
+//
 static inline
 void
-string_seed_rng(Nonnull(RngState*) rng, Nonnull(const char*) restrict str, size_t len){
+seed_rng_string(Nonnull(RngState*) rng, Nonnull(const char*) restrict str, size_t len){
     uint64_t s = hashbytes(str, len);
     uint64_t s2 = s * 1087;
     seed_rng_fixed(rng, s, s2);
@@ -82,6 +105,9 @@ fast_reduce(uint32_t x, uint32_t N){
     return ((uint64_t)x * (uint64_t)N) >> 32;
 }
 
+//
+// Returns a random u32 in the range of [0, bound).
+//
 static inline
 uint32_t
 bounded_random(Nonnull(RngState*) rng, uint32_t bound){
