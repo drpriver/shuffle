@@ -139,7 +139,7 @@ main(int argc, char** argv){
         n = n_val;
     }
     if(read_stdin || (!files.count && !input.count)){
-        int interactive = isatty(STDIN_FILENO);
+        int interactive = stdin_is_interactive();
         unsigned f = flags;
         if(interactive){
             f |= F_STOP_ON_BLANK;
