@@ -1,8 +1,6 @@
 project('shuffle', 'c',
-  version : '0.1',
+  version : '1.0',
   default_options : ['warning_level=3'])
-
-add_project_arguments('-march=native', language: 'c')
 
 cc = meson.get_compiler('c')
 

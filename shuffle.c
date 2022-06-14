@@ -1,20 +1,54 @@
+//
+// Copyright © 2021-2022, David Priver
+//
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "term_util.h"
-#include "macros.h"
+#include <string.h>
 #include "rng.h"
+
+#ifdef _WIN32
+
+#ifndef _CRT_NONSTDC_NO_DEPRECATE
+#define _CRT_NONSTDC_NO_DEPRECATE
+#endif
+
+#include <io.h>
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+static inline int stdin_is_interactive(void){
+    return _isatty(STDIN_FILENO);
+}
+#else
+#include <unistd.h>
+#include <sys/ioctl.h>
+static inline int stdin_is_interactive(void){
+    return isatty(STDIN_FILENO);
+}
+#endif
+
+#ifdef __clang__
+#pragma clang assume_nonnull begin
+#else
+#ifndef _Null_unspecified
+#define _Null_unspecified
+#endif
+#ifndef _Nullable
+#define _Nullable
+#endif
+#endif
 
 typedef struct PointerArray {
     size_t capacity;
-    Nonnull(NullUnspec(void*)*) data;
+    void*_Null_unspecified* data;
     size_t count;
 } PointerArray;
 
 static inline PointerArray make_pointer_array(void);
-static inline void push(Nonnull(PointerArray*)array, NullUnspec(void*) p);
-static inline void shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t count);
-static inline Nonnull(void*) memdup(Nonnull(const void*)src, size_t length);
+static inline void push(PointerArray*array, void*_Null_unspecified p);
+static inline void shuffle_pointers(RngState* rng, void*_Nullable* data, size_t count);
+static inline void* memdup(const void*src, size_t length);
 
 enum {
     F_NONE          = 0x0,
@@ -22,7 +56,7 @@ enum {
     F_STOP_ON_BLANK = 0x2,
     F_PRINT_NEWLINE = 0x4,
 };
-static void get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags);
+static void get_lines(PointerArray* array, FILE* fp, unsigned flags);
 
 static void print_help(const char* progname);
 static void print_usage(const char* progname);
@@ -237,7 +271,7 @@ make_pointer_array(void){
 
 static inline
 void
-push(Nonnull(PointerArray*)array, NullUnspec(void*) p){
+push(PointerArray* array, void*_Null_unspecified p){
     if(array->count >= array->capacity){
         array->capacity *= 2;
         array->data = realloc(array->data, sizeof(*array->data) * array->capacity);
@@ -252,7 +286,7 @@ push(Nonnull(PointerArray*)array, NullUnspec(void*) p){
 // fisher-yates shuffle
 static inline
 void
-shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t count){
+shuffle_pointers(RngState* rng, void*_Nullable*data, size_t count){
     if(count < 2)
         return;
     for(size_t i = 0; i < count; i++){
@@ -264,8 +298,8 @@ shuffle_pointers(Nonnull(RngState*)rng, Nonnull(Nullable(void*)*)data, size_t co
 }
 
 static inline
-Nonnull(void*)
-memdup(Nonnull(const void*)src, size_t length){
+void*
+memdup(const void* src, size_t length){
     void* p = malloc(length);
     if(!p){
         perror("Failed to memdup: malloc");
@@ -277,7 +311,7 @@ memdup(Nonnull(const void*)src, size_t length){
 
 static
 void
-get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
+get_lines(PointerArray* array, FILE* fp, unsigned flags){
     char buff[8192];
     while(fgets(buff, sizeof(buff), fp)){
         size_t len = strlen(buff);
@@ -300,3 +334,6 @@ get_lines(Nonnull(PointerArray*) array, Nonnull(FILE*)fp, unsigned flags){
     if(flags & F_PRINT_NEWLINE)
         putchar('\n');
 }
+#ifdef __clang__
+#pragma clang assume_nonnull end
+#endif
